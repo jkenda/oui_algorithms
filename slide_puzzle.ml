@@ -11,116 +11,36 @@ let sliding_puzzle_3x3 = {
           4; 5; 6;
           7; 8; 0|]
     ];
-    next_f = (function
-        | [|0; b; c;
-            d; e; f;
-            g; h; i|] -> [
-                [|b; 0; c;
-                  d; e; f;
-                  g; h; i|], 1;
-                [|d; b; c;
-                  0; e; f;
-                  g; h; i|], 1
-            ]
-        | [|a; 0; c;
-            d; e; f;
-            g; h; i|] -> [
-                [|a; e; c;
-                  d; 0; f;
-                  g; h; i|], 1;
-                [|a; c; 0;
-                  d; e; f;
-                  g; h; i|], 1;
-                [|0; a; c;
-                  d; e; f;
-                  g; h; i|], 1
-            ];
-        | [|a; b; 0;
-            d; e; f;
-            g; h; i|] -> [
-                [|a; 0; b;
-                  d; e; f;
-                  g; h; i|], 1;
-                [|a; b; f;
-                  d; e; 0;
-                  g; h; i|], 1
-            ];
-        | [|a; b; c;
-            0; e; f;
-            g; h; i|] -> [
-                [|0; b; c;
-                  a; e; f;
-                  g; h; i|], 1;
-                [|a; b; c;
-                  e; 0; f;
-                  g; h; i|], 1;
-                [|a; b; c;
-                  g; e; f;
-                  0; h; i|], 1
-            ];
-        | [|a; b; c;
-            d; 0; f;
-            g; h; i|] -> [
-                [|a; 0; c;
-                  d; b; f;
-                  g; h; i|], 1;
-                [|a; b; c;
-                  0; d; f;
-                  g; h; i|], 1;
-                [|a; b; c;
-                  d; f; 0;
-                  g; h; i|], 1;
-                [|a; b; c;
-                  d; h; f;
-                  g; 0; i|], 1
-            ];
-        | [|a; b; c;
-            d; e; 0;
-            g; h; i|] -> [
-                [|a; b; 0;
-                  d; e; c;
-                  g; h; i|], 1;
-                [|a; b; c;
-                  d; 0; e;
-                  g; h; i|], 1;
-                [|a; b; c;
-                  d; e; i;
-                  g; h; 0|], 1
-            ];
-        | [|a; b; c;
-            d; e; f;
-            0; h; i|] -> [
-                [|a; b; c;
-                  0; e; f;
-                  d; h; i|], 1;
-                [|a; b; c;
-                  d; e; f;
-                  h; 0; i|], 1
-            ];
-        | [|a; b; c;
-            d; e; f;
-            g; 0; i|] -> [
-                [|a; b; c;
-                  d; 0; f;
-                  g; e; i|], 1;
-                [|a; b; c;
-                  d; e; f;
-                  0; g; i|], 1;
-                [|a; b; c;
-                  d; e; f;
-                  g; i; 0|], 1;
-            ];
-        | [|a; b; c;
-            d; e; f;
-            g; h; 0|] -> [
-                [|a; b; c;
-                  d; e; 0;
-                  g; h; f|], 1;
-                [|a; b; c;
-                  d; e; f;
-                  g; 0; h|], 1
-            ];
-        | _ -> raise Unreachable);
+
+    next_f = (function state ->
+        let empty_coord =
+            let find_empty prev i tile =
+                if tile = 0 then (i / 3, i mod 3) else prev
+            in
+            fold_lefti find_empty (0, 0) state
+        in
+        let swap (i2, j2) =
+            let (i1, j1) = empty_coord in
+            let idx1 = (3 * i1 + j1)
+            and idx2 = (3 * i2 + j2)
+            and copy = Array.copy state in
+            copy.(idx1) <- copy.(idx2);
+            copy.(idx2) <- 0;
+            copy, 1
+        in
+        match empty_coord with
+        | (0, 0) -> [swap (0, 1); swap (1, 0)]
+        | (0, 1) -> [swap (0, 0); swap (0, 2); swap (1, 1)]
+        | (0, 2) -> [swap (0, 1); swap (2, 1)]
+        | (1, 0) -> [swap (1, 1); swap (0, 0); swap (2, 0)]
+        | (1, 1) -> [swap (1, 0); swap (1, 2); swap (0, 1); swap (2, 1)]
+        | (1, 2) -> [swap (1, 1); swap (0, 2); swap (2, 2)]
+        | (2, 0) -> [swap (2, 1); swap (1, 0)]
+        | (2, 1) -> [swap (2, 0); swap (2, 2); swap (1, 1)]
+        | (2, 2) -> [swap (2, 1); swap (1, 2)]
+        | (_, _) -> raise Unreachable
+    );
+
     heur_f = (function state ->
         let desired_pos = function
             | 1 -> (0, 0)
@@ -132,18 +52,19 @@ let sliding_puzzle_3x3 = {
             | 7 -> (2, 0)
             | 8 -> (2, 1)
             | _ -> (2, 2)
-        in
-        let current_pos i =
+        and current_pos i =
             (i / 3, i mod 3)
-        in
-        let manhattan_dist (a, b) (x, y) =
+        and manhattan_dist (a, b) (x, y) =
             Int.abs (a - x) + Int.abs (b - y)
-        in
-        let _euclid_dist (a, b) (x, y) =
+        and _euclid_dist (a, b) (x, y) =
             let d1 = a - x and d2 = b - y in
             (d1 * d1 + d2 * d2) |> Int.to_float |> Float.sqrt |> Float.to_int
         in
-        fold_lefti (fun sum i x -> sum + manhattan_dist (current_pos i) (desired_pos x)) 0 state)
+        let add_dist sum i tile =
+            sum + manhattan_dist (current_pos i) (desired_pos tile)
+        in
+        fold_lefti add_dist 0 state
+    )
 };;
 
 let print_path path =
