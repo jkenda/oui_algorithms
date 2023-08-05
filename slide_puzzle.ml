@@ -13,32 +13,33 @@ let sliding_puzzle_3x3 = {
     ];
 
     next_f = (function state ->
-        let empty_coord =
-            let find_empty prev i tile =
+        let find_empty state =
+            let find_empty' prev i tile =
                 if tile = 0 then (i / 3, i mod 3) else prev
             in
-            fold_lefti find_empty (0, 0) state
-        in
-        let swap (i2, j2) =
-            let (i1, j1) = empty_coord in
+            fold_lefti find_empty' (0, 0) state
+        and swap (i1, j1) (i2, j2) =
             let idx1 = (3 * i1 + j1)
             and idx2 = (3 * i2 + j2)
             and copy = Array.copy state in
+            let temp = copy.(idx1) in
             copy.(idx1) <- copy.(idx2);
-            copy.(idx2) <- 0;
+            copy.(idx2) <- temp;
             copy, 1
+        and neighbours = function
+            | (0, 0) -> [(0, 1); (1, 0)]
+            | (0, 1) -> [(0, 0); (0, 2); (1, 1)]
+            | (0, 2) -> [(0, 1); (1, 2)]
+            | (1, 0) -> [(1, 1); (0, 0); (2, 0)]
+            | (1, 1) -> [(1, 0); (1, 2); (0, 1); (2, 1)]
+            | (1, 2) -> [(1, 1); (0, 2); (2, 2)]
+            | (2, 0) -> [(2, 1); (1, 0)]
+            | (2, 1) -> [(2, 0); (2, 2); (1, 1)]
+            | (2, 2) -> [(2, 1); (1, 2)]
+            | (_, _) -> raise Unreachable
         in
-        match empty_coord with
-        | (0, 0) -> [swap (0, 1); swap (1, 0)]
-        | (0, 1) -> [swap (0, 0); swap (0, 2); swap (1, 1)]
-        | (0, 2) -> [swap (0, 1); swap (2, 1)]
-        | (1, 0) -> [swap (1, 1); swap (0, 0); swap (2, 0)]
-        | (1, 1) -> [swap (1, 0); swap (1, 2); swap (0, 1); swap (2, 1)]
-        | (1, 2) -> [swap (1, 1); swap (0, 2); swap (2, 2)]
-        | (2, 0) -> [swap (2, 1); swap (1, 0)]
-        | (2, 1) -> [swap (2, 0); swap (2, 2); swap (1, 1)]
-        | (2, 2) -> [swap (2, 1); swap (1, 2)]
-        | (_, _) -> raise Unreachable
+        let empty = find_empty state in
+        List.map (swap empty) (neighbours empty)
     );
 
     heur_f = (function state ->
@@ -56,9 +57,6 @@ let sliding_puzzle_3x3 = {
             (i / 3, i mod 3)
         and manhattan_dist (a, b) (x, y) =
             Int.abs (a - x) + Int.abs (b - y)
-        and _euclid_dist (a, b) (x, y) =
-            let d1 = a - x and d2 = b - y in
-            (d1 * d1 + d2 * d2) |> Int.to_float |> Float.sqrt |> Float.to_int
         in
         let add_dist sum i tile =
             sum + manhattan_dist (current_pos i) (desired_pos tile)
