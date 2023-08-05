@@ -22,9 +22,8 @@ let sliding_puzzle_3x3 = {
             let idx1 = (3 * i1 + j1)
             and idx2 = (3 * i2 + j2)
             and copy = Array.copy state in
-            let temp = copy.(idx1) in
-            copy.(idx1) <- copy.(idx2);
-            copy.(idx2) <- temp;
+            copy.(idx1) <- state.(idx2);
+            copy.(idx2) <- state.(idx1);
             copy, 1
         and neighbours = function
             | (0, 0) -> [(0, 1); (1, 0)]
@@ -35,8 +34,7 @@ let sliding_puzzle_3x3 = {
             | (1, 2) -> [(1, 1); (0, 2); (2, 2)]
             | (2, 0) -> [(2, 1); (1, 0)]
             | (2, 1) -> [(2, 0); (2, 2); (1, 1)]
-            | (2, 2) -> [(2, 1); (1, 2)]
-            | (_, _) -> raise Unreachable
+            | (_, _) -> [(2, 1); (1, 2)]
         in
         let empty = find_empty state in
         List.map (swap empty) (neighbours empty)
