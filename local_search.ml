@@ -189,13 +189,24 @@ let eight_queens = {
             0 state
     );
     to_string = (function state ->
-        let open Format in
-        Array.fold_left (fun acc (y, x) -> acc ^ (sprintf "(%d, %d) " y x)) "" state
+        let add_row acc queen_pos =
+            acc ^
+            match queen_pos with
+            | (_, 0) -> "Q.......\n"
+            | (_, 1) -> ".Q......\n"
+            | (_, 2) -> "..Q.....\n"
+            | (_, 3) -> "...Q....\n"
+            | (_, 4) -> "....Q...\n"
+            | (_, 5) -> ".....Q..\n"
+            | (_, 6) -> "......Q.\n"
+            | (_, _) -> ".......Q\n"
+        in
+        Array.fold_left add_row "" state
     )
 }
 ;;
 
 print_endline
 @@ eight_queens.to_string
-@@ beam_search 8 eight_queens
+@@ hill_climbing_search eight_queens
 
