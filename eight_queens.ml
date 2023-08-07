@@ -60,7 +60,10 @@ let eight_queens = {
 }
 ;;
 
+let open Format in
+let (queens, restarts) = beam_search 14 eight_queens in
 print_endline
 @@ eight_queens.to_string
-@@ hill_climbing_search eight_queens
+@@ queens;
+printf "restarts: %d\n" restarts
 

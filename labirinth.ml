@@ -31,10 +31,18 @@ let labirinth = {
 }
 ;;
 
-assert (hill_climbing_search labirinth = [|0; 0; 0; 0|]);;
-assert (beam_search 2 labirinth = [|0; 0; 0; 0|]);;
+let (labirinth_hill, hill_restarts) = hill_climbing_search labirinth;;
+let (labirinth_beam, beam_restarts) = beam_search 2 labirinth;;
+assert (labirinth_hill = [|0; 0; 0; 0|]);;
+assert (labirinth_beam = [|0; 0; 0; 0|]);;
+
+let open Format in
+print_endline
+@@ labirinth.to_string
+@@ labirinth_hill;
+printf "restarts: %d\n\n" hill_restarts;
 
 print_endline
 @@ labirinth.to_string
-@@ beam_search 2 labirinth
-
+@@ labirinth_beam;
+printf "restarts: %d\n" beam_restarts

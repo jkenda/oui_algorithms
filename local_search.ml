@@ -28,8 +28,8 @@ let hill_climbing_search { orig_f; next_f; val_f; to_string } =
         |> orig_f
         |> add_val
     in
-    let rec search' (state_val, state) =
-        if state_val = 0 then state
+    let rec search' restarts (state_val, state) =
+        if state_val = 0 then state, restarts
         else
             (* generate state's neighbours *)
             let best_next state =
@@ -41,13 +41,13 @@ let hill_climbing_search { orig_f; next_f; val_f; to_string } =
 
             match best_next state with
             (* next state is better than the current - continue search *)
-            | Some ((next_val, _) as next) when next_val < state_val ->
-                    search' next
+            | Some ((next_val, _) as next) when next_val <= state_val ->
+                    search' restarts next
             (* goal not found -> restart *)
-            | _ -> search' (init_state ())
+            | _ -> search' (restarts + 1) (init_state ())
     in
     init_state ()
-    |> search'
+    |> search' 0
 ;;
 
 Random.self_init ();;
@@ -73,7 +73,7 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
         |> List.map add_val
     in
     (* execute beam search *)
-    let rec search' visited beam =
+    let rec search' restarts visited beam =
         (* generate neighbourhood to the beam *)
         let gen_neigh beam =
             let gen_neigh' neigh (_, state) =
@@ -87,29 +87,30 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
             List.fold_left gen_neigh' [] beam
         (* filter the neighbourhood into a new beam *)
         and filter_best states =
-            let rec trim len = function
-                | [] -> []
-                | _ :: _ when len = 0 -> []
-                | hd :: tl -> hd :: trim (len - 1) tl
+            let rec trim len acc = function
+                | [] -> acc
+                | _ :: _ when len = 0 -> acc
+                | hd :: tl -> trim (len - 1) (hd :: acc) tl
             in
             states
             |> List.sort (fun (v1, _) (v2, _) -> v1 - v2)
-            |> trim beam_size
+            |> trim beam_size []
+            |> List.rev
         in
 
         let (best_val, best) = List.hd beam in
-        if best_val = 0 then best
+        if best_val = 0 then best, restarts
         else
             let neighbours = gen_neigh beam in
             let next_beam = filter_best neighbours in
             match List.nth_opt next_beam 0 with
             (* next state is better than the current - continue search *)
-            | Some (best_next_val, best_next) when best_next_val < best_val ->
-                    search' (neighbours @ visited) next_beam
+            | Some (best_next_val, best_next) when best_next_val <= best_val ->
+                    search' restarts (neighbours @ visited) next_beam
             (* goal not found -> restart *)
-            | _ -> search' [] (init_beam beam_size)
+            | _ -> search' (restarts + 1) [] (init_beam beam_size)
     in
     init_beam beam_size
-    |> search' []
+    |> search' 0 []
 ;;
 
