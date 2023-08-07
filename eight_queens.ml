@@ -36,10 +36,9 @@ let eight_queens = {
                 then 1
                 else 0
         in
-        fold_lefti
-            (fun acc i _ ->
-                acc + fold_lefti (fun acc j _ ->
-                    acc + attacks i j) 0 state)
+        fold_lefti (fun acc i _ ->
+            acc + fold_lefti (fun acc j _ ->
+                acc + attacks i j) 0 state)
             0 state
     );
     to_string = (function state ->

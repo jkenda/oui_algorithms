@@ -20,16 +20,17 @@ let vacuum = {
             | (Clean, Dirty), Right -> (Clean, Clean), Right
             | (Clean, _), Left as state -> state
             | (_, Clean), Right as state -> state
-        and move dir = function
-            | rooms, Left -> if dir = Right then rooms, Right else rooms, Left
-            | rooms, Right -> if dir = Left then rooms, Left else rooms, Right
+        and move = function
+            | Right, (rooms, Left) -> rooms, Right
+            | Left, (rooms, Right) -> rooms, Left
+            | _, state -> state
         in
-        [suck state, 1; move Left state, 1; move Right state, 1]
+        [suck state, 1; move (Left, state), 1; move (Right, state), 1]
     );
     heur_f = (function (rooms, _) ->
         match rooms with
         | (Dirty, Dirty) -> 2
-        | (Dirty, Clean) -> 1
+        | (Dirty, Clean)
         | (Clean, Dirty) -> 1
         | (Clean, Clean) -> 0
     );
