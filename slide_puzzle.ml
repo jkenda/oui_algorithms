@@ -1,4 +1,5 @@
 open Graph
+open Tools
 
 let sliding_puzzle_3x3 = {
     (* 0 means empty *)
@@ -60,30 +61,24 @@ let sliding_puzzle_3x3 = {
             sum + manhattan_dist (current_pos i) (desired_pos tile)
         in
         fold_lefti add_dist 0 state
-    )
-};;
-
-let print_path path =
-    let print_state state =
-        let print_tile i tile =
+    );
+    to_string = (function state ->
+        let string_of_tile i tile =
             let tile_of_int = function
                 | 0 -> ' '
                 | n -> Char.chr (n + Char.code '0')
             in
-            print_char (tile_of_int tile);
-            print_char (if i mod 3 = 2 then '\n' else ' ')
+            Char.escaped (tile_of_int tile);
+            ^ (if i mod 3 = 2 then "\n" else " ")
         in
-        fold_lefti (fun _ i x -> print_tile i x) () state;
-        print_char '\n'
-    in
-    let rec aux = function
-        | [] -> ()
-        | hd :: tl -> print_state hd; aux tl
-    in aux path
-;;
+        fold_lefti (fun acc i x -> acc ^ string_of_tile i x) "" state
+    )
+};;
 
 
 match find_a' sliding_puzzle_3x3 with
-| Some (path, steps) -> print_path path; Format.printf "steps: %d\n" steps
+| Some (path, steps) ->
+        print_string @@ string_of_path sliding_puzzle_3x3.to_string path;
+        Format.printf "steps: %d\n" steps
 | None -> print_endline "not found"
 

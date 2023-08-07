@@ -5,25 +5,30 @@ type 'a graph = {
     origin: 'a;
     goals: 'a list;
     next_f: 'a -> ('a * dist) list;
-    heur_f: 'a -> dist
+    heur_f: 'a -> dist;
+    to_string: 'a -> string
 };;
 
 let graph1 = {
     origin = 'a'; goals = ['h'];
     next_f = (function 'a' -> ['b', 1; 'c', 2] | 'b' | 'c' -> [] | _ -> raise Unreachable);
-    heur_f = (function _ -> 0)
+    heur_f = (function _ -> 0);
+    to_string = Char.escaped
 };;
 
 let graph2 = {
     origin = 'a'; goals = ['c'];
     next_f = (function 'a' -> ['b', 1; 'c', 2] | 'b' | 'c' -> [] | _ -> raise Unreachable);
-    heur_f = (function _ -> 0)
+    heur_f = (function _ -> 0);
+    to_string = Char.escaped
 };;
 
 let graph3 = {
     origin = 'a'; goals = ['h'];
-    next_f = (function 'a' -> ['b', 1; 'c', 2] | 'b' -> [] | 'c' -> ['h', 3] | _ -> raise Unreachable);
-    heur_f = (function _ -> 0)
+    next_f = (function 'a' -> ['b', 1; 'c', 2] | 'b' -> [] | 'c' -> ['h', 3]
+    | _ -> raise Unreachable);
+    heur_f = (function _ -> 0);
+    to_string = Char.escaped
 }
 
 (* depth first search *)
@@ -147,7 +152,8 @@ let graph = {
         | 'p' -> []
         | _ -> raise Unreachable);
     heur_f = (function _ ->
-        raise (Failure "the default heur_f is a placeholder"))
+        raise (Failure "the default heur_f is a placeholder"));
+    to_string = Char.escaped
 };;
 
 let correct_h = function 's' -> 4 | 'a' -> 5 | 'b' -> 5 | 'c' -> 5
@@ -283,4 +289,11 @@ assert (find_ida' { graph with heur_f = incorrect_h } = find_a' { graph with heu
 assert (find_ida' { graph with heur_f = correct_h   } = find_a' { graph with heur_f = correct_h   });;
 assert (find_ida' { graph with heur_f = perfect_h   } = find_a' { graph with heur_f = perfect_h   });;
 assert (find_ida' { graph with heur_f = (fun _ -> 0); goals = [' ']   } = None);;
+
+let string_of_path f path =
+    let rec aux acc = function
+        | [] -> acc
+        | hd :: tl -> aux (acc ^ (f hd) ^ "\n\n") tl
+    in aux "" path
+;;
 
