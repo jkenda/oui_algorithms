@@ -27,20 +27,22 @@ let hill_climbing_search { orig_f; next_f; val_f; to_string } =
         |> add_val
     in
     let rec search' (state_val, state) =
-        (* generate state's neighbours *)
-        let best_next state =
-            next_f state
-            |> List.map add_val
-            |> List.sort (fun (v1, _) (v2, _) -> v1 - v2)
-            |> (function [] -> None | hd :: _ -> Some hd)
-        in
+        if state_val = 0 then state
+        else
+            (* generate state's neighbours *)
+            let best_next state =
+                next_f state
+                |> List.map add_val
+                |> List.sort (fun (v1, _) (v2, _) -> v1 - v2)
+                |> (function [] -> None | hd :: _ -> Some hd)
+            in
 
-        match best_next state with
-        (* next state is better than the current - continue search *)
-        | Some ((next_val, _) as next) when next_val < state_val ->
-                search' next
-        (* best state found (may get stuck in local minumum) *)
-        | _ -> state
+            match best_next state with
+            (* next state is better than the current - continue search *)
+            | Some ((next_val, _) as next) when next_val <= state_val ->
+                    search' next
+            (* goal not found -> restart *)
+            | _ -> search' (init_state ())
     in
     init_state ()
     |> search'
@@ -85,15 +87,16 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
             |> trim beam_size
         in
 
-        let (best_val, best) = List.hd beam
-        and next_beam = filter_best (gen_neigh beam) in
-
-        match List.nth_opt next_beam 0 with
-        (* next state is better than the current - continue search *)
-        | Some (best_next_val, best_next) when best_next_val < best_val ->
-                search' next_beam
-        (* best state found (may get stuck in local minumum) *)
-        | _ -> best
+        let (best_val, best) = List.hd beam in
+        if best_val = 0 then best
+        else
+            let next_beam = filter_best (gen_neigh beam) in
+            match List.nth_opt next_beam 0 with
+            (* next state is better than the current - continue search *)
+            | Some (best_next_val, best_next) when best_next_val <= best_val ->
+                    search' next_beam
+            (* goal not found -> restart *)
+            | _ -> search' (init_beam beam_size)
     in
     init_beam beam_size
     |> search'
