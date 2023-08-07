@@ -28,26 +28,33 @@ let hill_climbing_search { orig_f; next_f; val_f; to_string } =
         |> orig_f
         |> add_val
     in
-    let rec search' restarts (state_val, state) =
+    let rec search' restarts visited (state_val, state) =
         if state_val = 0 then state, restarts
         else
+            let gen_neigh state =
+                let filter f state =
+                    let (v, _) as state = (val_f state, state) in
+                    if v >= state_val || List.mem state visited
+                    then None else Some state
+                in
+                List.filter_map (filter add_val) (next_f state)
             (* generate state's neighbours *)
-            let best_next state =
-                next_f state
-                |> List.map add_val
+            and best_next states =
+                states
                 |> List.sort (fun (v1, _) (v2, _) -> v1 - v2)
                 |> (function [] -> None | hd :: _ -> Some hd)
             in
 
-            match best_next state with
+            let neigh = gen_neigh state in
+            match best_next neigh with
             (* next state is better than the current - continue search *)
             | Some ((next_val, _) as next) when next_val <= state_val ->
-                    search' restarts next
+                    search' restarts (neigh @ visited) next
             (* goal not found -> restart *)
-            | _ -> search' (restarts + 1) (init_state ())
+            | _ -> search' (restarts + 1) [] (init_state ())
     in
     init_state ()
-    |> search' 0
+    |> search' 0 []
 ;;
 
 Random.self_init ();;
@@ -78,9 +85,10 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
         let gen_neigh beam =
             let gen_neigh' neigh (_, state) =
                 let filter_visited state =
-                    let val_state = add_val state in
-                    if List.mem val_state visited then None
-                    else Some val_state
+                    let (state_val, _) = List.hd beam
+                    and (v, _) as state = add_val state in
+                    if v >= state_val || List.mem state visited
+                    then None else Some state
                 in
                 List.filter_map filter_visited (next_f state) @ neigh
             in
