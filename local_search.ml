@@ -17,45 +17,52 @@ Random.self_init ();;
 
 (* beam local search *)
 let beam_search { beam_size; orig_f; next_f; val_f; to_string } =
-    let add_val state = (val_f state, state) in
-    let make_beam rand_list =
-        List.map (fun rand -> add_val (orig_f rand)) rand_list
-    (* generate *beam size* random origins *)
-    and gen_random_list beam_size =
-        let rec gen' acc = function
-        | 0 -> acc
-        | n -> gen' (Random.full_int (Int.max_int) :: acc) (n - 1)
-        in
-        gen' [] beam_size
-    (* generate states for next step *)
-    and gen_next states =
-        let gen_next' next (value, state) =
-            List.map add_val (next_f state) @ next
-        in
-        List.fold_left gen_next' [] states
-    (* put the best states into a beam *)
-    and filter_best states =
-        let rec trim len = function
-            | [] -> []
-            | _ :: _ when len = 0 -> []
-            | hd :: tl -> hd :: trim (len - 1) tl
-        in
-        states
-        |> List.sort (fun (v1, _) (v2, _) -> v1 - v2)
-        |> trim beam_size
+    let add_val state =
+        (val_f state, state)
     in
+    (* generate *beam size* random origins *)
+    let init_beam beam_size =
+        let gen_random_list beam_size =
+            let rec gen' acc = function
+            | 0 -> acc
+            | n -> gen' (Random.full_int (Int.max_int) :: acc) (n - 1)
+            in
+            gen' [] beam_size
+        in
+        gen_random_list beam_size
+        |> List.map (fun rand -> add_val (orig_f rand))
+    in
+    (* execute beam search *)
     let rec search' beam =
-        let next_states = gen_next beam in
-        let next_beam = filter_best next_states
-        and (best_val, best) = List.hd beam in
+        (* generate neighbourhood to the beam *)
+        let gen_neigh beam =
+            let gen_neigh' neigh (_, state) =
+                List.map add_val (next_f state) @ neigh
+            in
+            List.fold_left gen_neigh' [] beam
+        (* filter the neighbourhood into a new beam *)
+        and filter_best states =
+            let rec trim len = function
+                | [] -> []
+                | _ :: _ when len = 0 -> []
+                | hd :: tl -> hd :: trim (len - 1) tl
+            in
+            states
+            |> List.sort (fun (v1, _) (v2, _) -> v1 - v2)
+            |> trim beam_size
+        in
+
+        let (best_val, best) = List.hd beam
+        and next_beam = filter_best (gen_neigh beam) in
 
         match List.nth_opt next_beam 0 with
+        (* next state is better than the current - continue search *)
         | Some (best_next_val, best_next) when best_next_val < best_val ->
                 search' next_beam
+        (* best state found (may get stuck in local minumum) *)
         | _ -> best
     in
-    gen_random_list beam_size
-    |> make_beam
+    init_beam beam_size
     |> search'
 ;;
 
