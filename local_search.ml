@@ -3,7 +3,7 @@ exception Unreachable;;
 type dist = int;;
 type 'a problem = {
     (** generate a random state from a random int *)
-    orig_f: int -> 'a;
+    orig_f: (unit -> int) -> 'a;
     (** generate a list of next states for state *)
     next_f: 'a -> 'a list;
     (** how close the state is to the goal
@@ -22,7 +22,7 @@ let hill_climbing_search { orig_f; next_f; val_f; to_string } =
         let gen_random_int () =
             Random.full_int (Int.max_int)
         in
-        gen_random_int ()
+        gen_random_int
         |> orig_f
         |> add_val
     in
@@ -57,15 +57,18 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
     in
     (* generate *beam size* random origins *)
     let init_beam beam_size =
+        let gen_random_int () =
+            Random.full_int (Int.max_int)
+        in
         let gen_random_list beam_size =
             let rec gen' acc = function
             | 0 -> acc
-            | n -> gen' (Random.full_int (Int.max_int) :: acc) (n - 1)
+            | n -> gen' (orig_f gen_random_int :: acc) (n - 1)
             in
             gen' [] beam_size
         in
         gen_random_list beam_size
-        |> List.map (fun rand -> add_val (orig_f rand))
+        |> List.map add_val
     in
     (* execute beam search *)
     let rec search' beam =
@@ -104,7 +107,7 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
 
 let problem = {
     orig_f = (function rand ->
-        match rand mod 4 with
+        match rand () mod 4 with
         | 0 -> [|1; 0; 0; 0|]
         | 1 -> [|0; 1; 0; 0|]
         | 2 -> [|0; 0; 1; 0|]
