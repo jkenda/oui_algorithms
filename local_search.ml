@@ -1,3 +1,5 @@
+open Tools;;
+
 exception Unreachable;;
 
 type dist = int;;
@@ -39,7 +41,7 @@ let hill_climbing_search { orig_f; next_f; val_f; to_string } =
 
             match best_next state with
             (* next state is better than the current - continue search *)
-            | Some ((next_val, _) as next) when next_val <= state_val ->
+            | Some ((next_val, _) as next) when next_val < state_val ->
                     search' next
             (* goal not found -> restart *)
             | _ -> search' (init_state ())
@@ -71,11 +73,16 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
         |> List.map add_val
     in
     (* execute beam search *)
-    let rec search' beam =
+    let rec search' visited beam =
         (* generate neighbourhood to the beam *)
         let gen_neigh beam =
             let gen_neigh' neigh (_, state) =
-                List.map add_val (next_f state) @ neigh
+                let filter_visited state =
+                    let val_state = add_val state in
+                    if List.mem val_state visited then None
+                    else Some val_state
+                in
+                List.filter_map filter_visited (next_f state) @ neigh
             in
             List.fold_left gen_neigh' [] beam
         (* filter the neighbourhood into a new beam *)
@@ -93,19 +100,20 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
         let (best_val, best) = List.hd beam in
         if best_val = 0 then best
         else
-            let next_beam = filter_best (gen_neigh beam) in
+            let neighbours = gen_neigh beam in
+            let next_beam = filter_best neighbours in
             match List.nth_opt next_beam 0 with
             (* next state is better than the current - continue search *)
-            | Some (best_next_val, best_next) when best_next_val <= best_val ->
-                    search' next_beam
+            | Some (best_next_val, best_next) when best_next_val < best_val ->
+                    search' (neighbours @ visited) next_beam
             (* goal not found -> restart *)
-            | _ -> search' (init_beam beam_size)
+            | _ -> search' [] (init_beam beam_size)
     in
     init_beam beam_size
-    |> search'
+    |> search' []
 ;;
 
-let problem = {
+let labirinth = {
     orig_f = (function rand ->
         match rand () mod 4 with
         | 0 -> [|1; 0; 0; 0|]
@@ -136,5 +144,58 @@ let problem = {
 }
 ;;
 
-assert (hill_climbing_search problem = [|0; 0; 0; 0|]);;
-assert (beam_search 2 problem = [|0; 0; 0; 0|]);;
+assert (hill_climbing_search labirinth = [|0; 0; 0; 0|]);;
+assert (beam_search 2 labirinth = [|0; 0; 0; 0|]);;
+
+let eight_queens = {
+    orig_f = (function rand ->
+        let rec rand_pos row =
+            (row, rand () mod 8)
+        in
+        Array.init 8 rand_pos
+    );
+    next_f = (function state ->
+        let queen_neighbours = function
+            | (a, 0) -> [(a, 1)]
+            | (a, 7) -> [(a, 6)]
+            | (a, b) -> [(a, b - 1); (a, b + 1)]
+        and move_queen state i neigh =
+            let copy = Array.copy state in
+            copy.(i) <- neigh;
+            copy
+        in
+        let add_states states i neighs =
+            List.map (move_queen state i) neighs
+        in
+        Array.map queen_neighbours state
+        |> fold_lefti add_states []
+    );
+    val_f = (function state ->
+        let attacks i j =
+            if i = j then 0
+            else
+                let (y1, x1) = state.(i)
+                and (y2, x2) = state.(j) in
+                if x1 = x2
+                || y1 = y2
+                || Int.abs (x1 - x2) = Int.abs (y1 - y2)
+                then 1
+                else 0
+        in
+        fold_lefti
+            (fun acc i _ ->
+                acc + fold_lefti (fun acc j _ ->
+                    acc + attacks i j) 0 state)
+            0 state
+    );
+    to_string = (function state ->
+        let open Format in
+        Array.fold_left (fun acc (y, x) -> acc ^ (sprintf "(%d, %d) " y x)) "" state
+    )
+}
+;;
+
+print_endline
+@@ eight_queens.to_string
+@@ beam_search 8 eight_queens
+
