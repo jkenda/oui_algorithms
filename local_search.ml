@@ -2,21 +2,54 @@ exception Unreachable;;
 
 type dist = int;;
 type 'a problem = {
-    beam_size: int;
     (** generate a random state from a random int *)
     orig_f: int -> 'a;
     (** generate a list of next states for state *)
     next_f: 'a -> 'a list;
-    (** how close the state is to the goal *)
+    (** how close the state is to the goal
+        (0 means goal reached) *)
     val_f: 'a -> dist;
     (** representation of the state as string *)
     to_string: 'a -> string
 };;
 
+let hill_climbing_search { orig_f; next_f; val_f; to_string } =
+    let add_val state =
+        (val_f state, state)
+    in
+    (* generate *beam size* random origins *)
+    let init_state () =
+        let gen_random_int () =
+            Random.full_int (Int.max_int)
+        in
+        gen_random_int ()
+        |> orig_f
+        |> add_val
+    in
+    let rec search' (state_val, state) =
+        (* generate state's neighbours *)
+        let best_next state =
+            next_f state
+            |> List.map add_val
+            |> List.sort (fun (v1, _) (v2, _) -> v1 - v2)
+            |> (function [] -> None | hd :: _ -> Some hd)
+        in
+
+        match best_next state with
+        (* next state is better than the current - continue search *)
+        | Some ((next_val, _) as next) when next_val < state_val ->
+                search' next
+        (* best state found (may get stuck in local minumum) *)
+        | _ -> state
+    in
+    init_state ()
+    |> search'
+;;
+
 Random.self_init ();;
 
 (* beam local search *)
-let beam_search { beam_size; orig_f; next_f; val_f; to_string } =
+let beam_search beam_size { orig_f; next_f; val_f; to_string } =
     let add_val state =
         (val_f state, state)
     in
@@ -67,7 +100,6 @@ let beam_search { beam_size; orig_f; next_f; val_f; to_string } =
 ;;
 
 let problem = {
-    beam_size = 2;
     orig_f = (function rand ->
         match rand mod 4 with
         | 0 -> [|1; 0; 0; 0|]
@@ -97,4 +129,6 @@ let problem = {
     )
 }
 ;;
-assert (beam_search problem = [|0; 0; 0; 0|]);;
+
+assert (hill_climbing_search problem = [|0; 0; 0; 0|]);;
+assert (beam_search 2 problem = [|0; 0; 0; 0|]);;
