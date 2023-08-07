@@ -15,27 +15,25 @@ type 'a problem = {
 
 Random.self_init ();;
 
-(* beam local search search *)
-let find_beam { beam_size; orig_f; next_f; val_f; to_string } =
-    let origins =
-        (* generate *beam size* random origins *)
-        let gen_origin beam_size orig_f =
-            let rec gen_random_list acc = function
-                | 0 -> acc
-                | n -> gen_random_list (Random.full_int (Int.max_int) :: acc) (n - 1)
-            in
-            gen_random_list [] beam_size
-            |> List.map orig_f
+(* beam local search *)
+let beam_search { beam_size; orig_f; next_f; val_f; to_string } =
+    let add_val state = (val_f state, state) in
+    let make_beam rand_list =
+        List.map (fun rand -> add_val (orig_f rand)) rand_list
+    (* generate *beam size* random origins *)
+    and gen_random_list beam_size =
+        let rec gen' acc = function
+        | 0 -> acc
+        | n -> gen' (Random.full_int (Int.max_int) :: acc) (n - 1)
         in
-        gen_origin beam_size orig_f
-    in
+        gen' [] beam_size
     (* generate states for next step *)
-    let gen_next states =
-        let gen_next' next state =
-            next_f state @ next
+    and gen_next states =
+        let gen_next' next (value, state) =
+            List.map add_val (next_f state) @ next
         in
         List.fold_left gen_next' [] states
-    (* put the mest states into a beam *)
+    (* put the best states into a beam *)
     and filter_best states =
         let rec trim len = function
             | [] -> []
@@ -43,22 +41,22 @@ let find_beam { beam_size; orig_f; next_f; val_f; to_string } =
             | hd :: tl -> hd :: trim (len - 1) tl
         in
         states
-        |> List.sort (fun a b -> val_f a - val_f b)
+        |> List.sort (fun (v1, _) (v2, _) -> v1 - v2)
         |> trim beam_size
-    and string_of_list f list =
-        "[" ^ List.fold_left (fun acc x -> acc ^ " " ^ f x) "" list ^ " ]"
     in
-    let rec aux states =
-        print_endline (string_of_list to_string states);
-        let neighbours = gen_next states in
-        let next_states = filter_best neighbours in
-        let best = List.hd states in
+    let rec search' beam =
+        let next_states = gen_next beam in
+        let next_beam = filter_best next_states
+        and (best_val, best) = List.hd beam in
 
-        match List.nth_opt next_states 0 with
-        | Some best_next when val_f best_next < val_f best -> aux next_states
+        match List.nth_opt next_beam 0 with
+        | Some (best_next_val, best_next) when best_next_val < best_val ->
+                search' next_beam
         | _ -> best
     in
-    aux origins
+    gen_random_list beam_size
+    |> make_beam
+    |> search'
 ;;
 
 let problem = {
@@ -92,5 +90,4 @@ let problem = {
     )
 }
 ;;
-
-assert (find_beam problem = [|0; 0; 0; 0|]);;
+assert (beam_search problem = [|0; 0; 0; 0|]);;
