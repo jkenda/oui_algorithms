@@ -68,7 +68,7 @@ let rec tic_tac_toe = {
             ^ (string_of_tile tile)
             ^ (if i mod 3 = 2 then "\n" else "")
         in
-        fold_lefti string_of_state "  1 2 3\n" board
+        fold_lefti string_of_state "  a b c\n" board
     )
 } 
 
@@ -80,7 +80,7 @@ let rec play game depth =
         if player = human then
             (print_string (tic_tac_toe.to_string game.state);
             print_string "> "; flush stdout;
-            let i = Scanf.scanf "%d, %d\n" (fun i j -> 3 * (i-1) + (j-1)) in
+            let i = Scanf.scanf "%c%d\n" (fun i j -> 3 * (j-1) + (Char.compare i 'a')) in
             if 0 <= i && i < 9 && board.(i) = E then
                 (board.(i) <- player;
                 { game with state = (next_player player, board) }, false, 1)
