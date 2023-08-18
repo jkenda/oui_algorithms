@@ -53,7 +53,7 @@ let rec tic_tac_toe = {
                 matches c f i +
                 matches a e i +
                 matches g e c)
-                * (9 - count board)
+                * (10 - count board)
         | _ -> 0
     );
     game_over = (function ((player, board) as state) ->
@@ -76,26 +76,30 @@ let human = O
 
 let rec play game depth =
     let (player, board) = game.state in
-    let game, fail =
+    let game, fail, score =
         if player = human then
             (print_string (tic_tac_toe.to_string game.state);
             print_string "> "; flush stdout;
             let i = Scanf.scanf "%d, %d\n" (fun i j -> 3 * (i-1) + (j-1)) in
             if 0 <= i && i < 9 && board.(i) = E then
                 (board.(i) <- player;
-                { game with state = (next_player player, board) }, false)
-            else game, true)
+                { game with state = (next_player player, board) }, false, 1)
+            else game, true, 1)
         else
-            (let _, next_state = minimax depth game in
-            { game with state = next_state }, false)
+            (let score, next_state = minimax depth game in
+            { game with state = next_state }, false, score)
     in
 
-    match tic_tac_toe.game_over game.state with
-    | None -> play game (depth - if fail then 0 else 1)
-    | Some score ->
+    if score = 0 then (
         print_string (tic_tac_toe.to_string game.state);
-        if score = 0 then None
-        else Some player
+        None)
+    else
+        match tic_tac_toe.game_over game.state with
+        | None -> play game (depth - if fail then 0 else 1)
+        | Some score ->
+            print_string (tic_tac_toe.to_string game.state);
+            if score = 0 then None
+            else Some player
 
 let () =
     let winner = play tic_tac_toe 9 in
