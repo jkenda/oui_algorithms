@@ -1,131 +1,108 @@
 open Tools
 open Games
 
-type tile = X | O | E;;
+type tile = X | O | E
 let string_of_tile = function
     | X -> "X"
     | O -> "O"
     | E -> " "
-;;
+let next_player = function
+    | X -> O
+    | O -> X
+    | _ -> raise Unreachable
 
 let count state =
     let count' acc tile =
         acc + if tile != E then 1 else 0
     in Array.fold_left count' 0 state
-;;
 
 let rec tic_tac_toe = {
     state =
+        (X,
         [|E; E; E;
           E; E; E;
-          E; E; E|];
-    next_f = (function state ->
+          E; E; E|]
+        );
+    next_f = (function (player, board) ->
         let neigh states i tile =
             let add_o i =
-                let copy = Array.copy state in
-                copy.(i) <- O;
-                copy
+                let copy = Array.copy board in
+                copy.(i) <- player;
+                next_player player, copy
             in
             if tile = E then add_o i :: states
             else states
         in
-        fold_lefti neigh [] state
+        fold_lefti neigh [] board
     );
-    val_f = (function state ->
-        match state with
-        | [|O; O; O;
-            _; _; _;
-            _; _; _|]
-        | [|_; _; _;
-            O; O; O;
-            _; _; _|]
-        | [|_; _; _;
-            _; _; _;
-            O; O; O|]
-        | [|O; _; _;
-            O; _; _;
-            O; _; _|]
-        | [|_; O; _;
-            _; O; _;
-            _; O; _|]
-        | [|_; _; O;
-            _; _; O;
-            _; _; O|]
-        | [|O; _; _;
-            _; O; _;
-            _; _; O|]
-        | [|_; _; O;
-            _; O; _;
-            O; _; _|] -> 9 - count state
-        | [|X; X; X;
-            _; _; _;
-            _; _; _|]
-        | [|_; _; _;
-            X; X; X;
-            _; _; _|]
-        | [|_; _; _;
-            _; _; _;
-            X; X; X|]
-        | [|X; _; _;
-            X; _; _;
-            X; _; _|]
-        | [|_; X; _;
-            _; X; _;
-            _; X; _|]
-        | [|_; _; X;
-            _; _; X;
-            _; _; X|]
-        | [|X; _; _;
-            _; X; _;
-            _; _; X|]
-        | [|_; _; X;
-            _; X; _;
-            X; _; _|] -> -(9 - count state)
+    val_f = (function (player, board) ->
+        let matches a b c =
+            if a != E && a = b && a = c then
+                (if a = player then 1 else -1)
+            else 0
+        in
+        match board with
+        | [|a; b; c;
+            d; e; f;
+            g; h; i|] ->
+                (matches a b c +
+                matches d e f +
+                matches g h i +
+                matches a d g +
+                matches b e h +
+                matches c f i +
+                matches a e i +
+                matches g e c)
+                * (9 - count board)
         | _ -> 0
     );
-    game_over = (function game ->
-        tic_tac_toe.val_f game.state != 0 || count game.state = 9
+    game_over = (function ((player, board) as state) ->
+        let score = tic_tac_toe.val_f state in
+        if score = 0 && count board < 9 then None
+        else Some score
     );
-    to_string = (function game ->
+    to_string = (function (player, board) ->
         let string_of_state string i tile =
             string
             ^ (if i mod 3 = 0 then string_of_int (i / 3 + 1) else "") ^ " "
             ^ (string_of_tile tile)
             ^ (if i mod 3 = 2 then "\n" else "")
         in
-        fold_lefti string_of_state "  1 2 3\n" game.state
+        fold_lefti string_of_state "  1 2 3\n" board
     )
 } 
-;;
-    
 
-let () =
-    let rec play game player depth =
-        let game, fail =
-            if player then
-                (print_string (tic_tac_toe.to_string game);
-                print_string "> "; flush stdout;
-                let i = Scanf.scanf "%d, %d\n" (fun i j -> 3 * (i-1) + (j-1)) in
-                if 0 <= i && i < 9 && game.state.(i) = E then
-                    (game.state.(i) <- X;
-                    game, true)
-                else game, false)
-            else
-                (let _, next_state = minimax depth game in
-                { game with state = next_state }, true)
-        in
+let human = O
 
-        if tic_tac_toe.game_over game then
-            (print_string (tic_tac_toe.to_string game);
-            tic_tac_toe.val_f game.state)
+let rec play game depth =
+    let (player, board) = game.state in
+    let game, fail =
+        if player = human then
+            (print_string (tic_tac_toe.to_string game.state);
+            print_string "> "; flush stdout;
+            let i = Scanf.scanf "%d, %d\n" (fun i j -> 3 * (i-1) + (j-1)) in
+            if 0 <= i && i < 9 && board.(i) = E then
+                (board.(i) <- player;
+                { game with state = (next_player player, board) }, false)
+            else game, true)
         else
-            let player = (if fail then not else Fun.id) player in
-            let depth = depth - if fail then 0 else 1 in
-            play game player depth
+            (let _, next_state = minimax depth game in
+            { game with state = next_state }, false)
     in
 
-    let score = play tic_tac_toe false 9 in
-    print_endline ("game over, "
-        ^ (if score = 0 then "draw!"
-            else if score < 0 then "you won!"
-            else "you lost!"))
+    match tic_tac_toe.game_over game.state with
+    | None -> play game (depth - if fail then 0 else 1)
+    | Some score ->
+        print_string (tic_tac_toe.to_string game.state);
+        if score = 0 then None
+        else Some player
+
+let () =
+    let winner = play tic_tac_toe 9 in
+    print_endline ("game over, " ^
+    match winner with
+    | None -> "draw!"
+    | Some p ->
+            if p = human then "you won!"
+            else "you lost!")
+
