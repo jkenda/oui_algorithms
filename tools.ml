@@ -1,5 +1,5 @@
 
-exception Unreachable;;
+exception Unreachable
 
 let fold_lefti f x a =
     let open Array in
@@ -8,7 +8,6 @@ let fold_lefti f x a =
         r := f !r i (unsafe_get a i)
     done;
     !r
-;;
 
 module PrioQueue =
     struct
@@ -38,5 +37,5 @@ module PrioQueue =
         let extract = function
             | Empty -> raise Queue_is_empty
             | Node(prio, elt, _, _) as queue -> (prio, elt, remove_top queue)
-    end;;
+    end
 

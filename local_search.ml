@@ -1,7 +1,5 @@
 open Tools
 
-exception Unreachable
-
 type dist = int
 type 'a problem = {
     (** generate a random state from a random int *)
@@ -10,65 +8,101 @@ type 'a problem = {
     next_f: 'a -> 'a list;
     (** how close the state is to the goal
         (0 means goal reached) *)
-    val_f: 'a -> dist;
+    dist_f: 'a -> dist;
     (** representation of the state as string *)
     to_string: 'a -> string
 }
+;;
 
-let hill_climbing_search { orig_f; next_f; val_f; to_string } =
-    let add_val state =
-        (val_f state, state)
+Random.self_init ()
+
+(* get random int *)
+let gen_random_int () =
+    Random.full_int (Int.max_int)
+;;
+(* add distance to state *)
+let add_dist dist_f state =
+    (dist_f state, state)
+;;
+(* generate a random origin *)
+let init_state orig_f dist_f =
+    add_dist dist_f @@ orig_f gen_random_int
+;;
+(* generate state's neighbours *)
+let best_next states =
+    let min' ((min_v, _) as min) ((v, _) as state) =
+        if v < min_v then state else min
     in
-    (* generate *beam size* random origins *)
-    let init_state () =
-        let gen_random_int () =
-            Random.full_int (Int.max_int)
+    match states with
+    | [] -> None
+    | hd :: tl -> Some (List.fold_left min' hd tl)
+;;
+
+let hill_climbing_search { orig_f; next_f; dist_f; to_string } =
+    (* generate neighbouring states;
+     filter out those that are:
+         - worse than the current
+         - already visited *)
+    let gen_neigh (dist, state) visited =
+        let keep_relevant state =
+            let (d, _) as ds = (dist_f state, state) in
+            if d >= dist || List.mem ds visited
+            then None else Some ds
         in
-        gen_random_int
-        |> orig_f
-        |> add_val
+        List.filter_map keep_relevant (next_f state)
     in
-    let rec search' restarts visited (state_val, state) =
-        if state_val = 0 then state, restarts
+    let rec search' restarts visited ((dist, state) as ds) =
+        if dist = 0 then state, restarts
         else
-            let gen_neigh state =
-                let filter f state =
-                    let (v, _) as state = (val_f state, state) in
-                    if v >= state_val || List.mem state visited
-                    then None else Some state
-                in
-                List.filter_map (filter add_val) (next_f state)
-            (* generate state's neighbours *)
-            and best_next states =
-                states
-                |> List.sort (fun (v1, _) (v2, _) -> v1 - v2)
-                |> (function [] -> None | hd :: _ -> Some hd)
-            in
-
-            let neigh = gen_neigh state in
+            let neigh = gen_neigh ds visited in
             match best_next neigh with
             (* next state is better than the current - continue search *)
-            | Some ((next_val, _) as next) when next_val <= state_val ->
+            | Some ((next_dist, _) as next) when next_dist < dist ->
                     search' restarts (neigh @ visited) next
             (* goal not found -> restart *)
-            | _ -> search' (restarts + 1) [] (init_state ())
+            | _ -> search' (restarts + 1) [] @@ init_state orig_f dist_f
     in
-    init_state ()
+    init_state orig_f dist_f
     |> search' 0 []
 ;;
 
-Random.self_init ();;
+let simulated_annealing_search init_temp { orig_f; next_f; dist_f; to_string } =
+    (* generate neighbouring states *)
+    let gen_neigh state =
+        next_f state
+        |> List.map (add_dist dist_f)
+    in
+    let rec search' restarts temp ((curr_dist, curr_state) as curr) =
+        (* dist. to solution goal 0 - goal found *)
+        if curr_dist = 0 then curr_state, restarts
+        else
+            (* solution not found - restart *)
+            if temp = 0. then search' (restarts + 1) init_temp @@ init_state orig_f dist_f
+            else
+                let neigh = gen_neigh curr_state in
+                match best_next neigh with
+                | None -> search' (restarts + 1) init_temp @@ init_state orig_f dist_f
+                | Some ((best_dist, _) as best) -> 
+                    search' restarts (temp /. 2.) @@
+                        (* if there is a better neighbour, use it *)
+                        if best_dist < curr_dist then best
+                        else
+                            (* otherwise use either a random worse state or the current one *)
+                            let (next_dist, _) as next =
+                                List.nth neigh
+                                @@ Random.full_int
+                                @@ List.length neigh
+                            in
+                            let delta = Int.to_float (next_dist - curr_dist) in
+                            if Random.float 1. < (Float.exp (delta /. temp)) then next else curr
+    in
+    search' 0 init_temp @@ init_state orig_f dist_f
+;;
 
 (* beam local search *)
-let beam_search beam_size { orig_f; next_f; val_f; to_string } =
-    let add_val state =
-        (val_f state, state)
-    in
+let beam_search beam_size { orig_f; next_f; dist_f; to_string } =
     (* generate *beam size* random origins *)
     let init_beam beam_size =
-        let gen_random_int () =
-            Random.full_int (Int.max_int)
-        in
         let gen_random_list beam_size =
             let rec gen' acc = function
             | 0 -> acc
@@ -77,7 +111,7 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
             gen' [] beam_size
         in
         gen_random_list beam_size
-        |> List.map add_val
+        |> List.map (add_dist dist_f)
     in
     (* execute beam search *)
     let rec search' restarts visited beam =
@@ -85,9 +119,9 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
         let gen_neigh beam =
             let gen_neigh' neigh (_, state) =
                 let filter_visited state =
-                    let (state_val, _) = List.hd beam
-                    and (v, _) as state = add_val state in
-                    if v >= state_val || List.mem state visited
+                    let (state_dist, _) = List.hd beam
+                    and (v, _) as state = (add_dist dist_f) state in
+                    if v >= state_dist || List.mem state visited
                     then None else Some state
                 in
                 List.filter_map filter_visited (next_f state) @ neigh
@@ -106,14 +140,14 @@ let beam_search beam_size { orig_f; next_f; val_f; to_string } =
             |> List.rev
         in
 
-        let (best_val, best) = List.hd beam in
-        if best_val = 0 then best, restarts
+        let (best_dist, best) = List.hd beam in
+        if best_dist = 0 then best, restarts
         else
             let neighbours = gen_neigh beam in
             let next_beam = filter_best neighbours in
             match List.nth_opt next_beam 0 with
             (* next state is better than the current - continue search *)
-            | Some (best_next_val, best_next) when best_next_val <= best_val ->
+            | Some (best_next_dist, best_next) when best_next_dist <= best_dist ->
                     search' restarts (neighbours @ visited) next_beam
             (* goal not found -> restart *)
             | _ -> search' (restarts + 1) [] (init_beam beam_size)

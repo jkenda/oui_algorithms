@@ -1,4 +1,5 @@
 open Local_search
+open Tools
 
 let labirinth = {
     orig_f = (function rand ->
@@ -16,7 +17,7 @@ let labirinth = {
         | [|0; 0; 0; 0|] -> [ [|0; 0; 0; 1|] ]
         | _ -> raise Unreachable
     );
-    val_f = (function
+    dist_f = (function
         | [|1; 0; 0; 0|] -> 4
         | [|0; 1; 0; 0|] -> 3
         | [|0; 0; 1; 0|] -> 2
