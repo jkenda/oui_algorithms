@@ -76,9 +76,27 @@ let sliding_puzzle_3x3 = {
 };;
 
 
-match find_a' sliding_puzzle_3x3 with
+let open Format in
+match find_ida' sliding_puzzle_3x3 with
 | Some (path, steps) ->
         print_string @@ string_of_path sliding_puzzle_3x3.to_string path;
-        Format.printf "steps: %d\n" steps
-| None -> print_endline "not found"
+        printf "steps: %d\n" steps;
+        flush stdout
+| None -> print_endline "not found";;
 
+let open Format in
+let run n algo =
+    let start = Unix.gettimeofday () in
+    for i = 1 to n do
+        algo sliding_puzzle_3x3
+    done;
+    Unix.gettimeofday () -. start
+
+and iter = 10_000 in
+
+printf "+-----------+----------+\n";
+printf "| algorithm | time (s) |\n";
+printf "+-----------+----------+\n";
+printf "| A*        | %8.3f |\n" (run iter find_a');
+printf "| IDA*      | %8.3f |\n" (run iter find_ida');
+printf "+-----------+----------+\n";

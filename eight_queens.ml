@@ -60,20 +60,57 @@ let eight_queens = {
 
 
 let open Format in
-let (queens, restarts) = simulated_annealing_search 64. eight_queens in
+let (queens, restarts) = beam_search 8 eight_queens in
 print_endline
 @@ eight_queens.to_string
 @@ queens;
-printf "restarts: %d\n" restarts;
 
-let avg_restarts n =
+let run n algo =
     let rec sum acc = function
         | 0 -> (Float.of_int acc) /. (Float.of_int n)
         | n ->
-                let (_, restarts) = simulated_annealing_search 64. eight_queens in
+                let (_, restarts) = algo eight_queens in
                 sum (acc + restarts) (n - 1)
     in
-    sum 0 n
+    let start = Unix.gettimeofday () in
+    let restarts = sum 0 n in
+    (Unix.gettimeofday () -. start, restarts)
 in
-printf "avg. restarts: %f\n" (avg_restarts 10_000)
 
+let iter = 10_000 in
+
+print_endline "+-----------+----------------+---------+----------+";
+print_endline "| algorithm | params         | speedup | restarts |";
+
+let (time_hill, restarts) = run iter (hill_climbing_search) in
+printf        "| hill cl.  |              / | %7.3f | %8.3f |\n" 1. restarts; flush stdout;
+
+let (time, restarts) = run iter (beam_search 1) in
+printf        "| beam se.  | beam_size = 1  | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (beam_search 2) in
+printf        "| beam se.  | beam_size = 2  | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (beam_search 4) in
+printf        "| beam se.  | beam_size = 4  | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (beam_search 8) in
+printf        "| beam se.  | beam_size = 8  | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (beam_search 16) in
+printf        "| beam se.  | beam_size = 16 | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (beam_search 32) in
+printf        "| beam se.  | beam_size = 32 | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+
+let (time, restarts) = run iter (simulated_annealing_search 1.) in
+printf        "| sim. an.  | init_temp = 1  | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (simulated_annealing_search 2.) in
+printf        "| sim. an.  | init_temp = 2  | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (simulated_annealing_search 4.) in
+printf        "| sim. an.  | init_temp = 4  | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (simulated_annealing_search 8.) in
+printf        "| sim. an.  | init_temp = 8  | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (simulated_annealing_search 16.) in
+printf        "| sim. an.  | init_temp = 16 | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (simulated_annealing_search 32.) in
+printf        "| sim. an.  | init_temp = 32 | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+let (time, restarts) = run iter (simulated_annealing_search 64.) in
+printf        "| sim. an.  | init_temp = 64 | %7.3f | %8.3f |\n" (time_hill /. time) restarts; flush stdout;
+
+print_endline "+-----------+----------------+---------+----------+";

@@ -22,14 +22,14 @@ let shuffle d =
     List.map snd sond
 
 let minimax start_depth { state; next_f; val_f; game_over; to_string } =
-    let rec minimax' state depth max =
+    let rec minimax' state depth is_max =
         match game_over state with
         | Some score -> score
         | None when depth = 0 -> val_f state
         | None ->
-            let mM child = minimax' child (depth - 1) (not max) in
+            let mM child = minimax' child (depth - 1) (not is_max) in
             let find curr_best child =
-                let f = if max then Int.max else Int.min in
+                let f = if is_max then max else min in
                 f curr_best (mM child)
             in
             match shuffle (next_f state) with

@@ -282,6 +282,7 @@ let find_ida' { origin; goals; next_f; heur_f } =
     in
     find' (heur_f origin)
 ;;
+
 assert (find_ida' { graph with heur_f = incorrect_h } = Some (['s'; 'b'; 'f'; 'n'; 'o'], 8));;
 assert (find_ida' { graph with heur_f = correct_h   } = Some (['s'; 'b'; 'e'; 'l'], 7));;
 assert (find_ida' { graph with heur_f = perfect_h   } = find_ida' { graph with heur_f = correct_h });;
