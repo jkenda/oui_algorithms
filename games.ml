@@ -16,6 +16,7 @@ type ('a, 'b) game = {
 ;;
 
 Random.self_init ()
+
 let shuffle d =
     let nd = List.map (fun c -> (Random.bits (), c)) d in
     let sond = List.sort compare nd in
